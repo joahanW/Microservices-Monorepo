@@ -1,5 +1,6 @@
 package com.johan.customer;
 
+import com.johan.amqp.RabbitMQMessageProducer;
 import com.johan.clients.fraud.FraudCheckResponse;
 import com.johan.clients.fraud.FraudClient;
 import com.johan.clients.notification.NotificationClient;
@@ -16,6 +17,7 @@ public class CustomerServices {
     private final RestTemplate restTemplate;
     private final FraudClient fraudClient;
     private final NotificationClient notificationClient;
+    private final RabbitMQMessageProducer rabbitMQMessageProducer;
 
     public void registerCustomer(CustomerRegistrationRequest request) {
         Customer customer = Customer.builder()
@@ -42,14 +44,29 @@ public class CustomerServices {
             throw new IllegalStateException("Fraudster");
         }
         // todo: send notification
-        notificationClient.sendNotification(
-                new NotificationRequest(
-                        customer.getId(),
-                        customer.getEmail(),
-                        String.format("Hi %s, welcome to JohanCode...",
-                                customer.getFirstName())
-                )
+//        notificationClient.sendNotification(
+//                new NotificationRequest(
+//                        customer.getId(),
+//                        customer.getEmail(),
+//                        String.format("Hi %s, welcome to JohanCode...",
+//                                customer.getFirstName())
+//                )
+//        );
+
+        // todo: make it async. i.e add to queue
+        NotificationRequest notificationRequest = new NotificationRequest(
+                customer.getId(),
+                customer.getEmail(),
+                String.format("Hi %s, welcome to JohanCode...",
+                        customer.getFirstName())
         );
+
+        rabbitMQMessageProducer.publish(
+                notificationRequest,
+                "internal.exchange",
+                "internal.notification.routing-key"
+        );
+
 
     }
 }
